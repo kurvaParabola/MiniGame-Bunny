@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Catch the carrot</title>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #fce4ec;       
+            --console-color: #f8bbd0;  
+            --screen-bg: #2b2b2b;      
+            --game-bg: #fff0f5;        
+            --text-color: #5d4037;     
+            --accent: #ff80ab;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: none;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: var(--bg-color);
+            font-family: 'VT323', monospace;
+            overflow: hidden;
+        }
+
+        .console-body {
+            background-color: var(--console-color);
+            padding: 30px 15px 40px 15px;
+            border-radius: 20px 20px 40px 40px;
+            box-shadow: 
+                inset 5px 5px 10px rgba(255,255,255,0.5),
+                inset -5px -5px 10px rgba(0,0,0,0.1),
+                10px 10px 20px rgba(0,0,0,0.15);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            border: 4px solid #fff;
+            max-width: 95vw;
+        }
+
+        .screen-container {
+            border: 4px solid #888;
+            border-radius: 10px 10px 30px 10px;
+            padding: 10px;
+            background-color: #9ea7a6;
+            box-shadow: inset 2px 2px 5px rgba(0,0,0,0.2);
+            position: relative;
+        }
+
+        canvas {
+            background-color: var(--game-bg);
+            border: 2px solid #555;
+            display: block;
+            border-radius: 4px;
+            image-rendering: pixelated; 
+            width: 280px; 
+            height: 350px;
+        }
+
+        .scanlines {
+            position: absolute;
+            top: 10px; left: 10px; right: 10px; bottom: 10px;
+            background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.05) 50%, rgba(0,0,0,0.05));
+            background-size: 100% 4px;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .ui-panel {
+            margin-top: 15px;
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 5px;
+        }
+
+        .action-btn {
+            background-color: var(--accent);
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            font-family: 'VT323', monospace;
+            font-size: 1.5rem;
+            border-radius: 12px;
+            cursor: pointer;
+            box-shadow: 3px 3px 0px rgba(0,0,0,0.2);
+        }
+
+        #overlay {
+            position: absolute;
+            top: 12px; left: 12px; right: 12px; bottom: 12px;
+            background: rgba(255, 240, 245, 0.95);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            z-index: 20;
+            border-radius: 4px;
+        }
+
+        .score-board {
+            position: absolute;
+            top: 20px; left: 20px;
+            font-size: 1.2rem;
+            color: var(--text-color);
+            z-index: 5;
+            line-height: 1.1;
+        }
+
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <div class="console-body">
+        <div class="screen-container">
+            <div class="score-board">
+                SCORE: <span id="score">0</span><br>
+                LEVEL: <span id="level">1</span>
+            </div>
+            <canvas id="gameCanvas" width="320" height="400"></canvas>
+            <div class="scanlines"></div>
+
+            <div id="overlay">
+                <h1 style="margin:0">BUNNY HOP</h1>
+                <p>Tap Layar Kiri/Kanan<br>Tangkap 🥕 Hindari 💣</p>
+                <button class="action-btn" onclick="startGame()">START</button>
+            </div>
+        </div>
+
+        <div class="ui-panel">
+            <div style="font-size: 1.2rem; color: #888;">&bull; BUNNY 0.0</div>
+            <div style="font-size: 1.2rem; color: #888;">[] []</div>
+        </div>
+    </div>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const scoreEl = document.getElementById('score');
+    const levelEl = document.getElementById('level'); // Referensi level baru
+    const overlay = document.getElementById('overlay');
+
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    
+    function playSfx(type) {
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        if (type === 'carrot') {
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.1);
+            gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.1);
+        } else if (type === 'bomb') {
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + 0.3);
+            gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.3);
+        }
+    }
+
+    let gameRunning = false;
+    let score = 0;
+    let level = 1; // Variabel level baru
+    let items = [];
+    let frameCount = 0;
+    let speedMultiplier = 1;
+
+    const player = {
+        x: canvas.width / 2 - 20,
+        y: canvas.height - 60,
+        width: 40,
+        height: 40,
+        speed: 8,
+        emoji: "🐰"
+    };
+
+    let leftPressed = false;
+    let rightPressed = false;
+
+    window.addEventListener('touchstart', (e) => {
+        if (!gameRunning) return;
+        const touchX = e.touches[0].clientX;
+        if(touchX < window.innerWidth / 2) {
+            leftPressed = true; rightPressed = false;
+        } else {
+            rightPressed = true; leftPressed = false;
+        }
+    }, { passive: false });
+
+    window.addEventListener('touchend', () => {
+        leftPressed = false; rightPressed = false;
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if(e.key === 'ArrowLeft') leftPressed = true;
+        if(e.key === 'ArrowRight') rightPressed = true;
+    });
+    document.addEventListener('keyup', (e) => {
+        if(e.key === 'ArrowLeft') leftPressed = false;
+        if(e.key === 'ArrowRight') rightPressed = false;
+    });
+
+    class Item {
+        constructor() {
+            this.size = 30;
+            this.x = Math.random() * (canvas.width - this.size);
+            this.y = -this.size;
+            // Kecepatan dasar 3 + random 2, dikali multiplier level
+            this.speed = (Math.random() * 0.5 + 1.5) * speedMultiplier;
+            this.type = Math.random() > 0.2 ? 'carrot' : 'bomb'; 
+            this.emoji = this.type === 'carrot' ? "🥕" : "💣";
+        }
+        update() { this.y += this.speed; }
+        draw() {
+            ctx.font = "30px Arial";
+            ctx.fillText(this.emoji, this.x, this.y + 25);
+        }
+    }
+
+    function startGame() {
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        gameRunning = true;
+        score = 0;
+        level = 1;
+        speedMultiplier = 1;
+        items = [];
+        scoreEl.innerText = score;
+        levelEl.innerText = level;
+        overlay.classList.add('hidden');
+        loop();
+    }
+
+    function gameOver() {
+        gameRunning = false;
+        playSfx('bomb');
+        overlay.innerHTML = `
+            <h1 style="color: #d32f2f;">GAME OVER</h1>
+            <p>Score: ${score} | Level: ${level}</p>
+            <button class="action-btn" onclick="startGame()">RETRY</button>
+        `;
+        overlay.classList.remove('hidden');
+    }
+
+    function update() {
+        if (leftPressed && player.x > 0) player.x -= player.speed;
+        if (rightPressed && player.x < canvas.width - player.width) player.x += player.speed;
+
+        // Frekuensi spawn item bertambah seiring level
+        let spawnRate = Math.max(20, 50 - (level * 2));
+        if (frameCount % spawnRate === 0) items.push(new Item());
+
+        for (let i = 0; i < items.length; i++) {
+            items[i].update();
+            if (
+                items[i].x < player.x + player.width &&
+                items[i].x + items[i].size > player.x &&
+                items[i].y < player.y + player.height &&
+                items[i].y + items[i].size > player.y
+            ) {
+                if (items[i].type === 'carrot') {
+                    score++;
+                    scoreEl.innerText = score;
+                    playSfx('carrot');
+                    
+                    // --- LOGIKA KENAIKAN LEVEL & KECEPATAN ---
+                    // Naik level setiap 5 poin
+                    let newLevel = Math.floor(score / 5) + 1;
+                    if (newLevel > level) {
+                        level = newLevel;
+                        levelEl.innerText = level;
+                        // Kecepatan naik 15% setiap level baru
+                        speedMultiplier = 1 + (level - 1) * 0.15; 
+                    }
+                } else {
+                    gameOver();
+                }
+                items.splice(i, 1);
+                i--;
+                continue;
+            }
+            if (items[i].y > canvas.height) {
+                items.splice(i, 1);
+                i--;
+            }
+        }
+        frameCount++;
+    }
+
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.font = "40px Arial";
+        ctx.fillText(player.emoji, player.x, player.y + 35);
+        items.forEach(item => item.draw());
+    }
+
+    function loop() {
+        if (!gameRunning) return;
+        update();
+        draw();
+        requestAnimationFrame(loop);
+    }
+</script>
+
+</body>
+</html>
