@@ -136,7 +136,7 @@
 
             <div id="overlay">
                 <h1 style="margin:0">BUNNY HOP</h1>
-                <p>Tap Layar Kiri/Kanan<br>Tangkap 🥕 Hindari 💣</p>
+                <p>Geser Jari untuk Bergerak<br>Tangkap 🥕 Hindari 💣</p>
                 <button class="action-btn" onclick="startGame()">START</button>
             </div>
         </div>
@@ -151,7 +151,7 @@
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
     const scoreEl = document.getElementById('score');
-    const levelEl = document.getElementById('level'); // Referensi level baru
+    const levelEl = document.getElementById('level');
     const overlay = document.getElementById('overlay');
 
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -184,7 +184,7 @@
 
     let gameRunning = false;
     let score = 0;
-    let level = 1; // Variabel level baru
+    let level = 1;
     let items = [];
     let frameCount = 0;
     let speedMultiplier = 1;
@@ -201,20 +201,35 @@
     let leftPressed = false;
     let rightPressed = false;
 
-    window.addEventListener('touchstart', (e) => {
+    // --- MODIFIKASI KONTROL MOBILE (SLIDE) ---
+    function handleTouch(e) {
         if (!gameRunning) return;
-        const touchX = e.touches[0].clientX;
-        if(touchX < window.innerWidth / 2) {
-            leftPressed = true; rightPressed = false;
-        } else {
-            rightPressed = true; leftPressed = false;
-        }
-    }, { passive: false });
+        e.preventDefault();
+        
+        const touch = e.touches[0];
+        const rect = canvas.getBoundingClientRect();
+        
+        // Menghitung posisi X jari relatif terhadap canvas
+        const touchX = touch.clientX - rect.left;
+        
+        // Konversi koordinat layar ke koordinat internal canvas (320px)
+        const scaleX = canvas.width / rect.width;
+        let targetX = touchX * scaleX - (player.width / 2);
+        
+        // Batasi gerakan agar tetap di dalam layar
+        if (targetX < 0) targetX = 0;
+        if (targetX > canvas.width - player.width) targetX = canvas.width - player.width;
+        
+        player.x = targetX;
+    }
 
+    window.addEventListener('touchstart', handleTouch, { passive: false });
+    window.addEventListener('touchmove', handleTouch, { passive: false });
     window.addEventListener('touchend', () => {
-        leftPressed = false; rightPressed = false;
+        // Tidak perlu reset posisi saat jari diangkat agar bunny tetap di tempat
     });
 
+    // Kontrol Keyboard tetap dipertahankan
     document.addEventListener('keydown', (e) => {
         if(e.key === 'ArrowLeft') leftPressed = true;
         if(e.key === 'ArrowRight') rightPressed = true;
@@ -229,7 +244,6 @@
             this.size = 30;
             this.x = Math.random() * (canvas.width - this.size);
             this.y = -this.size;
-            // Kecepatan dasar 3 + random 2, dikali multiplier level
             this.speed = (Math.random() * 0.5 + 1.5) * speedMultiplier;
             this.type = Math.random() > 0.2 ? 'carrot' : 'bomb'; 
             this.emoji = this.type === 'carrot' ? "🥕" : "💣";
@@ -266,10 +280,10 @@
     }
 
     function update() {
+        // Update gerakan dari keyboard
         if (leftPressed && player.x > 0) player.x -= player.speed;
         if (rightPressed && player.x < canvas.width - player.width) player.x += player.speed;
 
-        // Frekuensi spawn item bertambah seiring level
         let spawnRate = Math.max(20, 50 - (level * 2));
         if (frameCount % spawnRate === 0) items.push(new Item());
 
@@ -286,13 +300,10 @@
                     scoreEl.innerText = score;
                     playSfx('carrot');
                     
-                    // --- LOGIKA KENAIKAN LEVEL & KECEPATAN ---
-                    // Naik level setiap 5 poin
                     let newLevel = Math.floor(score / 5) + 1;
                     if (newLevel > level) {
                         level = newLevel;
                         levelEl.innerText = level;
-                        // Kecepatan naik 15% setiap level baru
                         speedMultiplier = 1 + (level - 1) * 0.15; 
                     }
                 } else {
