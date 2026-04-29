@@ -7,12 +7,12 @@
     <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-color: #e8f5e9;       /* Hijau rumput sangat muda */
-            --console-color: #a5d6a7;  /* Hijau Sage (Body Console) */
+            --bg-color: #dff6f9;       /* Hijau rumput sangat muda */
+            --console-color: #a5d6a7;  
             --screen-bg: #2b2b2b;      
-            --game-bg: #f1f8e9;        /* Krem kehijauan (Layar Game) */
-            --text-color: #2e7d32;     /* Hijau Tua */
-            --accent: #8d6e63;         /* Cokelat Tanah (Tombol/Aksen) */
+            --game-bg: #f1f8e9;        
+            --text-color: #2e7d32;     
+            --accent: #8d6e63;         
             --border-color: #ffffff;
         }
 
@@ -99,10 +99,28 @@
             box-shadow: 3px 3px 0px rgba(0,0,0,0.2);
         }
 
+        /* STYLES TAMBAHAN UNTUK PAUSE */
+        .pause-btn {
+            background-color: #795548;
+            border: 2px solid #fff;
+            color: white;
+            font-family: 'VT323', monospace;
+            font-size: 1rem;
+            padding: 5px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 2px 2px 0px rgba(0,0,0,0.2);
+        }
+
+        .pause-btn:active {
+            transform: translateY(2px);
+            box-shadow: 0px 0px 0px;
+        }
+
         #overlay {
             position: absolute;
             top: 12px; left: 12px; right: 12px; bottom: 12px;
-            background: rgba(255, 240, 245, 0.95);
+            background: rgba(240, 243, 255, 0.95);
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -143,7 +161,7 @@
         </div>
 
         <div class="ui-panel">
-            <div style="font-size: 1.2rem; color: #888;">&bull; BUNNY 0.0</div>
+            <button id="pauseBtn" class="pause-btn" onclick="togglePause()">PAUSE</button>
             <div style="font-size: 1.2rem; color: #888;">[] []</div>
         </div>
     </div>
@@ -184,6 +202,7 @@
     }
 
     let gameRunning = false;
+    let isPaused = false; // VARIABLE BARU
     let score = 0;
     let level = 1;
     let items = [];
@@ -202,22 +221,16 @@
     let leftPressed = false;
     let rightPressed = false;
 
-    // --- MODIFIKASI KONTROL MOBILE (SLIDE) ---
     function handleTouch(e) {
-        if (!gameRunning) return;
+        if (!gameRunning || isPaused) return; // CEK PAUSE
         e.preventDefault();
         
         const touch = e.touches[0];
         const rect = canvas.getBoundingClientRect();
-        
-        // Menghitung posisi X jari relatif terhadap canvas
         const touchX = touch.clientX - rect.left;
-        
-        // Konversi koordinat layar ke koordinat internal canvas (320px)
         const scaleX = canvas.width / rect.width;
         let targetX = touchX * scaleX - (player.width / 2);
         
-        // Batasi gerakan agar tetap di dalam layar
         if (targetX < 0) targetX = 0;
         if (targetX > canvas.width - player.width) targetX = canvas.width - player.width;
         
@@ -226,11 +239,7 @@
 
     window.addEventListener('touchstart', handleTouch, { passive: false });
     window.addEventListener('touchmove', handleTouch, { passive: false });
-    window.addEventListener('touchend', () => {
-        // Tidak perlu reset posisi saat jari diangkat agar bunny tetap di tempat
-    });
 
-    // Kontrol Keyboard tetap dipertahankan
     document.addEventListener('keydown', (e) => {
         if(e.key === 'ArrowLeft') leftPressed = true;
         if(e.key === 'ArrowRight') rightPressed = true;
@@ -259,6 +268,10 @@
     function startGame() {
         if (audioCtx.state === 'suspended') audioCtx.resume();
         gameRunning = true;
+        isPaused = false; // RESET PAUSE
+        document.getElementById('pauseBtn').innerText = "PAUSE";
+        document.getElementById('pauseBtn').style.backgroundColor = "#795548";
+
         score = 0;
         level = 1;
         speedMultiplier = 1;
@@ -269,8 +282,26 @@
         loop();
     }
 
+    // FUNGSI BARU TOGGLE PAUSE
+    function togglePause() {
+        if (!gameRunning) return;
+
+        isPaused = !isPaused;
+        const btn = document.getElementById('pauseBtn');
+
+        if (isPaused) {
+            btn.innerText = "RESUME";
+            btn.style.backgroundColor = "#2e7d32";
+        } else {
+            btn.innerText = "PAUSE";
+            btn.style.backgroundColor = "#795548";
+            loop(); // Jalankan kembali loop saat resume
+        }
+    }
+
     function gameOver() {
         gameRunning = false;
+        document.getElementById('pauseBtn').innerText = "PAUSE";
         playSfx('bomb');
         overlay.innerHTML = `
             <h1 style="color: #d32f2f;">GAME OVER</h1>
@@ -281,7 +312,6 @@
     }
 
     function update() {
-        // Update gerakan dari keyboard
         if (leftPressed && player.x > 0) player.x -= player.speed;
         if (rightPressed && player.x < canvas.width - player.width) player.x += player.speed;
 
@@ -330,7 +360,7 @@
     }
 
     function loop() {
-        if (!gameRunning) return;
+        if (!gameRunning || isPaused) return; // TAMBAHKAN PENGECEKAN PAUSE DI SINI
         update();
         draw();
         requestAnimationFrame(loop);
