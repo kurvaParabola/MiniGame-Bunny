@@ -36,6 +36,7 @@
         }
 
         .console-body {
+            position: relative;
             background-color: var(--console-color);
             padding: 30px 15px 40px 15px;
             border-radius: 20px 20px 40px 40px;
@@ -140,11 +141,25 @@
         }
 
         .hidden { display: none !important; }
+
+        .body-accent-flower {
+            position: absolute;
+            width: 90px;          
+            height: auto;
+            top: -20px;         
+            right: -30px;         
+            z-index: 50;         
+            image-rendering: pixelated; 
+            pointer-events: none; 
+
+            filter: drop-shadow(2px 4px 0px rgba(0,0,0,0.1));
+        }
     </style>
 </head>
 <body>
 
     <div class="console-body">
+        <img src="sunflower.png" class="body-accent-flower" alt="decor">
         <div class="screen-container">
             <div class="score-board">
                 SCORE: <span id="score">0</span><br>
