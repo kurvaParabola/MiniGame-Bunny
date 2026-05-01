@@ -270,8 +270,23 @@
             this.x = Math.random() * (canvas.width - this.size);
             this.y = -this.size;
             this.speed = (Math.random() * 0.5 + 1.5) * speedMultiplier;
-            this.type = Math.random() > 0.2 ? 'carrot' : 'bomb'; 
-            this.emoji = this.type === 'carrot' ? "🥕" : "💣";
+            
+            let rand = Math.random();
+            if (rand < 0.5) {
+                this.type = 'carrot'; this.emoji = "🥕";
+            } else if (rand < 0.7) {
+                this.type = 'bomb'; this.emoji = "💣";
+            } else if (rand < 0.8) {
+                this.type = 'apple'; this.emoji = "🍎";
+            } else if (rand < 0.87) {
+                this.type = 'clock'; this.emoji = "⏰"; 
+            } else if (rand < 0.94) {
+                this.type = 'chili'; this.emoji = "🌶️"; 
+            } else if (rand < 0.97) {
+                this.type = 'lightning'; this.emoji = "⚡"; 
+            } else {
+                this.type = 'mystery'; this.emoji = "❓"; 
+            }
         }
         update() { this.y += this.speed; }
         draw() {
@@ -283,13 +298,15 @@
     function startGame() {
         if (audioCtx.state === 'suspended') audioCtx.resume();
         gameRunning = true;
-        isPaused = false; // RESET PAUSE
+        isPaused = false; 
         document.getElementById('pauseBtn').innerText = "PAUSE";
         document.getElementById('pauseBtn').style.backgroundColor = "#795548";
 
         player.width = 40;
         player.height = 40;
         player.y = canvas.height - 60;
+        player.speed = 8;
+        speedMultiplier = 1;
 
         score = 0;
         level = 1;
@@ -339,35 +356,92 @@
 
         for (let i = 0; i < items.length; i++) {
             items[i].update();
+
+            // Cek Tabrakan
             if (
                 items[i].x < player.x + player.width &&
                 items[i].x + items[i].size > player.x &&
                 items[i].y < player.y + player.height &&
                 items[i].y + items[i].size > player.y
             ) {
-                if (items[i].type === 'carrot') {
+                const type = items[i].type;
+
+                if (type === 'carrot') {
                     score++;
                     scoreEl.innerText = score;
                     playSfx('carrot');
-
+                    // Bunny membesar dikit
                     player.width += 0.15;
                     player.height += 0.15;
-
                     player.y -= 0.15;
                     
+                    // Update Level
                     let newLevel = Math.floor(score / 5) + 1;
                     if (newLevel > level) {
                         level = newLevel;
                         levelEl.innerText = level;
                         speedMultiplier = 1 + (level - 1) * 0.15; 
                     }
+                } 
+                else if (type === 'apple') {
+                    // EFEK APPLE: Skor +5
+                    score += 5;
+                    scoreEl.innerText = score;
+                    playSfx('carrot');
+                }
+                else if (type === 'lightning') {
+                    // EFEK LIGHTNING: Ngebut!
+                    let prevSpeed = player.speed;
+                    player.speed = 15; 
+                    playSfx('carrot');
+                    setTimeout(() => {
+                        player.speed = 8; // Kembali ke normal
+                    }, 5000);
+                }
+                else if (type === 'clock') {
+                    // EFEK CLOCK: Slow Motion
+                    let currentLevelMultiplier = 1 + (level - 1) * 0.15;
+                    speedMultiplier = 0.5; 
+                    playSfx('carrot');
+                    setTimeout(() => {
+                        // Kembali ke multiplier level saat ini, bukan 1
+                        speedMultiplier = 1 + (level - 1) * 0.15; 
+                    }, 4000);
+                } 
+                else if (type === 'chili') {
+                    player.speed = 3; 
+                    playSfx('bomb'); 
+                    setTimeout(() => {
+                        player.speed = 8; 
+                    }, 3000);
+                } 
+                else if (type === 'mystery') {
+                    playSfx('carrot');
+                    let gacha = Math.random();
+                    if (gacha < 0.5) {
+                        score += 20; 
+                        scoreEl.innerText = score;
+                    } else {
+                        player.width += 30;
+                        player.height += 30;
+                        player.y -= 30;
+                    }
+                } 
+                else if (type === 'bomb') {
+                    // Reset ukuran saat kena bom sebelum mati (opsional)
+                    player.width = 40;
+                    player.height = 40;
+                    gameOver();
                 } else {
                     gameOver();
                 }
+
                 items.splice(i, 1);
                 i--;
                 continue;
             }
+
+            // Hapus item jika lewat bawah layar
             if (items[i].y > canvas.height) {
                 items.splice(i, 1);
                 i--;
