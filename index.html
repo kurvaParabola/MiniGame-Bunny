@@ -252,8 +252,8 @@
         player.x = targetX;
     }
 
-    window.addEventListener('touchstart', handleTouch, { passive: false });
-    window.addEventListener('touchmove', handleTouch, { passive: false });
+    canvas.addEventListener('touchstart', handleTouch, { passive: false });
+    canvas.addEventListener('touchmove', handleTouch, { passive: false });
 
     document.addEventListener('keydown', (e) => {
         if(e.key === 'ArrowLeft') leftPressed = true;
